@@ -16,23 +16,27 @@ phases:
     commands:
       - echo Pushing the Docker image to Amazon ECR...
       - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$AWS_REPOSITORY:latest
+
       - echo Creating/Updating Lambda function...
+      # First, try creating the Lambda function
       - aws lambda create-function \
-          --function-name my-lambda-function \
+          --function-name randmalay \
           --package-type Image \
           --code ImageUri=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$AWS_REPOSITORY:latest \
           --role arn:aws:iam::$AWS_ACCOUNT_ID:role/LambdaExecutionRole \
           --architectures x86_64 \
           --timeout 15 \
           --memory-size 128 \
-        || aws lambda update-function-code \
-          --function-name my-lambda-function \
+        || \
+        # If creation fails (likely due to the function already existing), update the function
+        aws lambda update-function-code \
+          --function-name randmalay \
           --image-uri $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$AWS_REPOSITORY:latest
 
       - echo Creating API Gateway...
       - aws apigateway create-rest-api \
-          --name my-api-gateway \
-          --description "API Gateway for my Lambda function" \
+          --name randmalay-api \
+          --description "API Gateway for randmalay Lambda function" \
           --region $AWS_REGION \
           --output json > api_gateway_output.json
 
@@ -63,7 +67,7 @@ phases:
           --http-method GET \
           --type AWS_PROXY \
           --integration-http-method POST \
-          --uri arn:aws:apigateway:$AWS_REGION:lambda:path/2015-03-31/functions/$(aws lambda get-function --function-name my-lambda-function --query 'Configuration.FunctionArn' --output text)/invocations \
+          --uri arn:aws:apigateway:$AWS_REGION:lambda:path/2015-03-31/functions/$(aws lambda get-function --function-name randmalay --query 'Configuration.FunctionArn' --output text)/invocations \
           --region $AWS_REGION
 
       - echo Creating deployment...
@@ -74,7 +78,7 @@ phases:
 
       - echo Granting API Gateway permission to invoke Lambda...
       - aws lambda add-permission \
-          --function-name my-lambda-function \
+          --function-name randmalay \
           --principal apigateway.amazonaws.com \
           --statement-id apigateway-prod \
           --action lambda:InvokeFunction \
