@@ -28,7 +28,6 @@ phases:
           --timeout 15 \
           --memory-size 128 \
         || \
-        # If creation fails (likely due to the function already existing), update the function
         aws lambda update-function-code \
           --function-name randmalay \
           --image-uri $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$AWS_REPOSITORY:latest
