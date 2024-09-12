@@ -51,7 +51,6 @@ ROOT_ID=$(aws apigateway get-resources --rest-api-id $API_ID --region $AWS_REGIO
 echo "Creating/Updating API resource..."
 RESOURCE_ID=$(aws apigateway get-resources --rest-api-id $API_ID --region $AWS_REGION --output json | jq -r '.items[] | select(.path == "/hello") | .id')
 
-# Log RESOURCE_ID to debug
 if [ -z "$RESOURCE_ID" ]; then
   echo "No existing /hello resource found. Creating a new resource..."
   RESOURCE_ID=$(aws apigateway create-resource \
@@ -114,5 +113,14 @@ aws lambda add-permission \
     echo "Failed to add permission for API Gateway to invoke Lambda!"
     exit 1
   }
+
+echo "Verifying if API Gateway is listed as a Lambda trigger..."
+TRIGGERS=$(aws lambda get-policy --function-name randmalay --region $AWS_REGION)
+if echo "$TRIGGERS" | grep -q "$API_ID"; then
+  echo "API Gateway is correctly set as a trigger for Lambda."
+else
+  echo "Failed to verify API Gateway as a trigger for Lambda!"
+  exit 1
+fi
 
 echo "Deployment complete!"
