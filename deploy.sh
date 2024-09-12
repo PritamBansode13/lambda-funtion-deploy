@@ -34,7 +34,6 @@ aws lambda create-function \
 echo "Checking for existing API Gateway..."
 API_ID=$(aws apigateway get-rest-apis --query "items[?name=='randmalay-api'].id" --output text --region $AWS_REGION)
 
-# Check if API Gateway exists
 if [ -z "$API_ID" ] || [ "$API_ID" == "None" ]; then
   echo "Creating API Gateway..."
   aws apigateway create-rest-api \
@@ -52,17 +51,23 @@ ROOT_ID=$(aws apigateway get-resources --rest-api-id $API_ID --region $AWS_REGIO
 echo "Creating/Updating API resource..."
 RESOURCE_ID=$(aws apigateway get-resources --rest-api-id $API_ID --region $AWS_REGION --output json | jq -r '.items[] | select(.path == "/hello") | .id')
 
+# Log RESOURCE_ID to debug
 if [ -z "$RESOURCE_ID" ]; then
-  aws apigateway create-resource \
+  echo "No existing /hello resource found. Creating a new resource..."
+  RESOURCE_ID=$(aws apigateway create-resource \
     --rest-api-id $API_ID \
     --parent-id $ROOT_ID \
     --path-part hello \
-    --region $AWS_REGION || {
-      echo "Failed to create API resource!"
-      exit 1
-    }
+    --region $AWS_REGION --query 'id' --output text)
+  echo "Created new resource with ID: $RESOURCE_ID"
 else
   echo "Using existing API resource with ID $RESOURCE_ID"
+fi
+
+# Check if RESOURCE_ID is still empty
+if [ -z "$RESOURCE_ID" ]; then
+  echo "Failed to retrieve or create resource ID!"
+  exit 1
 fi
 
 echo "Creating/Updating GET method..."
