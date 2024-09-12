@@ -48,11 +48,11 @@ fi
 
 ROOT_ID=$(aws apigateway get-resources --rest-api-id $API_ID --region $AWS_REGION --output json | jq -r '.items[] | select(.path == "/") | .id')
 
-echo "Creating/Updating API resource..."
+echo "Checking for existing /hello resource..."
 RESOURCE_ID=$(aws apigateway get-resources --rest-api-id $API_ID --region $AWS_REGION --output json | jq -r '.items[] | select(.path == "/hello") | .id')
 
 if [ -z "$RESOURCE_ID" ]; then
-  echo "No existing /hello resource found. Creating a new resource..."
+  echo "Creating /hello resource..."
   RESOURCE_ID=$(aws apigateway create-resource \
     --rest-api-id $API_ID \
     --parent-id $ROOT_ID \
@@ -60,16 +60,10 @@ if [ -z "$RESOURCE_ID" ]; then
     --region $AWS_REGION --query 'id' --output text)
   echo "Created new resource with ID: $RESOURCE_ID"
 else
-  echo "Using existing API resource with ID $RESOURCE_ID"
+  echo "/hello resource already exists with ID: $RESOURCE_ID"
 fi
 
-# Check if RESOURCE_ID is still empty
-if [ -z "$RESOURCE_ID" ]; then
-  echo "Failed to retrieve or create resource ID!"
-  exit 1
-fi
-
-echo "Creating/Updating GET method..."
+echo "Creating/Updating GET method for the resource..."
 aws apigateway put-method \
   --rest-api-id $API_ID \
   --resource-id $RESOURCE_ID \
@@ -80,7 +74,7 @@ aws apigateway put-method \
     exit 1
   }
 
-echo "Creating/Updating integration..."
+echo "Creating/Updating integration for the GET method..."
 aws apigateway put-integration \
   --rest-api-id $API_ID \
   --resource-id $RESOURCE_ID \
@@ -113,14 +107,5 @@ aws lambda add-permission \
     echo "Failed to add permission for API Gateway to invoke Lambda!"
     exit 1
   }
-
-echo "Verifying if API Gateway is listed as a Lambda trigger..."
-TRIGGERS=$(aws lambda get-policy --function-name randmalay --region $AWS_REGION)
-if echo "$TRIGGERS" | grep -q "$API_ID"; then
-  echo "API Gateway is correctly set as a trigger for Lambda."
-else
-  echo "Failed to verify API Gateway as a trigger for Lambda!"
-  exit 1
-fi
 
 echo "Deployment complete!"
