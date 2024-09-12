@@ -48,11 +48,12 @@ fi
 
 ROOT_ID=$(aws apigateway get-resources --rest-api-id $API_ID --region $AWS_REGION --output json | jq -r '.items[] | select(.path == "/") | .id')
 
-echo "Checking for existing /hello resource..."
+echo "Creating/Updating API resource..."
 RESOURCE_ID=$(aws apigateway get-resources --rest-api-id $API_ID --region $AWS_REGION --output json | jq -r '.items[] | select(.path == "/hello") | .id')
 
+# Log RESOURCE_ID to debug
 if [ -z "$RESOURCE_ID" ]; then
-  echo "Creating /hello resource..."
+  echo "No existing /hello resource found. Creating a new resource..."
   RESOURCE_ID=$(aws apigateway create-resource \
     --rest-api-id $API_ID \
     --parent-id $ROOT_ID \
@@ -60,10 +61,16 @@ if [ -z "$RESOURCE_ID" ]; then
     --region $AWS_REGION --query 'id' --output text)
   echo "Created new resource with ID: $RESOURCE_ID"
 else
-  echo "/hello resource already exists with ID: $RESOURCE_ID"
+  echo "Using existing API resource with ID $RESOURCE_ID"
 fi
 
-echo "Creating/Updating GET method for the resource..."
+# Check if RESOURCE_ID is still empty
+if [ -z "$RESOURCE_ID" ]; then
+  echo "Failed to retrieve or create resource ID!"
+  exit 1
+fi
+
+echo "Creating/Updating GET method..."
 aws apigateway put-method \
   --rest-api-id $API_ID \
   --resource-id $RESOURCE_ID \
@@ -74,7 +81,7 @@ aws apigateway put-method \
     exit 1
   }
 
-echo "Creating/Updating integration for the GET method..."
+echo "Creating/Updating integration..."
 aws apigateway put-integration \
   --rest-api-id $API_ID \
   --resource-id $RESOURCE_ID \
